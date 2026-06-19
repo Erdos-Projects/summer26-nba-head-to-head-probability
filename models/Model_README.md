@@ -1,3 +1,14 @@
+# 0. Model selection
+The goal of this project is to build a machine learning model to predict the probability of an NBA team winning a head-to-head game. The prediction is based on historical game results and team performance statistics.
+
+To find a suitable modeling approach, we first test several baseline models to understand how different methods perform on this prediction task. Since predicting a win or loss is a binary classification problem, we consider three different types of models:
+
+1. **Logistic Regression (Generalized Linear Models):** Our baseline statistical model, which is excellent for understanding feature importance and calculating direct probabilities.
+2. **Generalized Additive Models (GAMs):** This allows us to capture non-linear relationships between team statistics without making the model overly complex.
+3. **ARMA (Autoregressive Moving Average) Model:** Used to analyze the time-series nature of team performance and momentum over the course of the season.
+
+By comparing these models, we aim to identify which approach provides better out-of-sample prediction performance and more reliable predictions for future NBA games.
+
 # 1. Logistic Regression Model (Generalized Linear Models)
 
 ## 1.1 Introduction
