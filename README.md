@@ -320,16 +320,16 @@ $$\text{Formula Structure} = s(0) + l(1) + l(2) + s(3) + l(4) + te(0, 1)$$
 
 * **Smooth Terms ($s$):** Applied to capture potential non-linearities in field goal percentages (Index 0) and win differentials (Index 3).
 * **Linear Terms ($l$):** Enforce strict linear relationships on broader efficiency variables like rolling plus-minus records and baseline turnover counts.
-* **Tensor Interaction ($te(0,1)$):** Evaluates joint structural effects between a team's field goal percentage differential and their net plus-minus differential.
+* **Tensor Interaction ($te$(0,1)):** Evaluates joint structural effects between a team's field goal percentage differential and their net plus-minus differential.
 
 ---
 
 ## 2.3 Cross-Validation Framework and Performance
 The model was validated using a randomized **5-Fold Cross-Validation** routine directly on the pipeline step execution to assess out-of-sample consistency. The cross-validation run demonstrated stable generalization properties across all folds:
 
-* Acc Mean(STD) 0.637(0.009)
-* ROC Mean(STD) 0.676(0.006)
-* Prec Mean(STD) 0.656(0.015)
+* Accuracy Mean (STD): 0.632 (0.008)
+* ROC Mean (STD): 0.678 (0.009)
+* Precision Mean (STD): 0.700 (0.017)
 
 ---
 
@@ -337,9 +337,9 @@ The model was validated using a randomized **5-Fold Cross-Validation** routine d
 After checking validation stability, the pipeline was fitted on the full training set (`xg_tr`, `yg_tr`) and evaluated blindly against the out-of-sample test split (`xg_te`, `yg_te`).
 
 
-* **Accuracy:** $0.629$
-* **ROC-AUC:** $0.667$
-* **Precision:** $0.647$
+* **Accuracy:** $0.624$
+* **ROC-AUC:** $0.675$
+* **Precision:** $0.687$
  
 ---
 
