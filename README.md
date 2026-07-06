@@ -25,268 +25,187 @@ This project aims to develop a machine learning system to predict the win probab
 
 ---
 
-# 0. Model Selection
+# Model Selection
 
-The goal of this project is to build a machine learning system to predict the probability of an NBA team winning a head-to-head matchup. Predictions are driven by historical game results, team-level win/loss records, and rolling individual/team performance metrics.
+The goal of this project is to develop a machine learning system to predict the probability of an NBA team winning a head-to-head matchup. Predictions are based on historical game outcomes, team-level performance, and rolling statistical features that summarize recent form.
 
-To establish a robust modeling framework, we evaluate several baseline and advanced models to understand their out-of-sample prediction performance:
+To evaluate predictive performance, we compare three increasingly sophisticated modeling approaches using the same dataset and evaluation framework.
 
-* **Logistic Regression (Generalized Linear Models):** Our baseline statistical model, ideal for understanding feature importance and calculating direct, well-calibrated probabilities.
-* **Generalized Additive Models (GAMs):** Implemented to capture non-linear relationships between team statistics without introducing excessive model complexity.
-* **Tree-Based Ensembles (Random Forest, Extra Trees, XGBoost):** Implemented to capture complex feature interactions, structural thresholds, and non-linear predictive signals.
+- **Baseline Models:** Simple heuristic-based predictors that establish benchmark performance for all machine learning methods.
+- **Logistic Regression (Generalized Linear Models):** An interpretable probabilistic classifier that models the relationship between recent team performance and game outcomes.
+- **Generalized Additive Models (GAMs):** Extend logistic regression by allowing nonlinear relationships while maintaining interpretability.
+- **Tree-Based Ensembles (Random Forest, Extra Trees, XGBoost):** Capture complex nonlinear interactions and higher-order feature relationships that linear models may miss.
 
-By comparing these methodologies, we aim to identify the optimal approach for reliable, real-world NBA game forecasting.
+By comparing these approaches against common baseline predictors, we assess the trade-off between model complexity, interpretability, and predictive performance.
+
+---
+
+# Data
+
+## Dataset
+
+All models are trained and evaluated using NBA games from **2010–2025**, including both **regular season** and **playoff** games. Data is collected through the `nba_api` Python package and combined into a single dataset for model development and evaluation.
+
+---
+
+## Response Variable
+
+The response variable is a binary indicator of the game outcome:
+
+$$
+Y_i = 
+\begin{cases} 
+1, & \text{if the home team wins}, \\ 
+0, & \text{if the away team wins}. 
+\end{cases}
+$$
+
+---
+
+## Predictor Variables
+
+Each predictor represents the difference between the **Home** and **Away** teams using rolling statistics from the previous ten games.
+
+For any statistic $S$,
+
+$$
+S_{\text{diff}} = S_{\text{Home}} - S_{\text{Away}}
+$$
+
+The full feature set includes:
+
+- `teamScore_roll10_diff`: Difference in average points scored over the previous 10 games.
+- `fieldGoalsPercentage_roll10_diff`: Difference in field goal shooting percentage over the previous 10 games.
+- `threePointersPercentage_roll10_diff`: Difference in three-point shooting percentage over the previous 10 games.
+- `freeThrowsPercentage_roll10_diff`: Difference in free throw shooting percentage over the previous 10 games.
+- `reboundsOffensive_roll10_diff`: Difference in offensive rebounds over the previous 10 games.
+- `reboundsDefensive_roll10_diff`: Difference in defensive rebounds over the previous 10 games.
+- `assists_roll10_diff`: Difference in assists over the previous 10 games, reflecting ball movement and playmaking.
+- `turnovers_roll10_diff`: Difference in turnovers over the previous 10 games, measuring ball security.
+- `steals_roll10_diff`: Difference in steals over the previous 10 games, indicating defensive pressure.
+- `blocks_roll10_diff`: Difference in blocks over the previous 10 games, measuring rim protection.
+- `plusMinusPoints_roll10_diff`: Difference in average plus/minus over the previous 10 games, representing overall team efficiency.
+- `win_roll10_diff`: Difference in wins over the previous 10 games, capturing recent team form.
+- `rest_days_diff`: Difference in the number of rest days before the game.
+- `b2b_diff`: Difference in back-to-back game status between the two teams.
+
+---
+
+# 0. Baseline Models
+
+To provide meaningful benchmarks, two simple baseline models are evaluated alongside every machine learning model.
+
+## Baseline 1: Home Team Wins
+
+This baseline predicts that the home team wins every game.
+
+$$
+\hat{Y} = 1
+$$
+
+It represents the historical home-court advantage in the NBA and provides the minimum benchmark that any predictive model should exceed.
+
+---
+
+## Baseline 2: Last-10 Game Record
+
+This baseline predicts the winner using only the difference in each team's record over their previous ten games (`win_roll10_diff`).
+
+Prediction rule:
+
+- If `win_roll10_diff > 0`, predict a home-team win.
+- If `win_roll10_diff < 0`, predict an away-team win.
+- If both teams have the same recent record, predict a home-team win.
+
+This baseline captures recent team momentum while remaining highly interpretable.
 
 ---
 
 # 1. Logistic Regression Model
 
 ## 1.1 Introduction
-Because predicting a win or loss is a binary classification problem, logistic regression serves as an excellent baseline. Unlike standard linear regression, logistic regression directly models the probability that a specific event occurs. 
 
-Let $p_i$ be the probability that the home team wins game $i$. The logistic regression model is defined as:
+Predicting the outcome of an NBA game is a binary classification problem. Logistic regression models the probability that the home team wins while providing interpretable coefficients for each predictor.
 
-$$p_i = P(Y_i=1 \mid X_i)$$
+Let $p_i$ denote the probability that the home team wins game $i$.
 
-Represented mathematically via the logistic function:
+$$
+p_i = P(Y_i = 1 \mid X_i)
+$$
 
-$$p_i=\frac{\exp(\beta_0+\beta_1X_{i1}+\cdots+\beta_kX_{ik})}{1+\exp(\beta_0+\beta_1X_{i1}+\cdots+\beta_kX_{ik})}$$
+The logistic regression model is defined as:
 
-Alternatively, this can be expressed in log-odds (logit) form:
+$$
+p_i = \frac{\exp(\beta_0 + \beta_1 X_{i1} + \dots + \beta_k X_{ik})}{1 + \exp(\beta_0 + \beta_1 X_{i1} + \dots + \beta_k X_{ik})}
+$$
 
-$$\log\left(\frac{p_i}{1-p_i}\right) =\beta_0+\sum_{j=1}^{k}\beta_jX_{ij}$$
+or equivalently,
 
-The coefficients $\beta_j$ quantify how a one-unit change in a standardized predictor variable affects the log-odds of the home team winning.
+$$
+\log\left(\frac{p_i}{1 - p_i}\right) = \beta_0 + \sum_{j=1}^{k} \beta_j X_{ij}
+$$
 
----
-
-## 1.2 Response Variable and Predictor Variables
-
-### Response Variable ($Y$)
-The dependent variable is a binary indicator of the game's outcome:
-
-$$Y_i= \begin{cases} 1, & \text{if the home team wins}, \\ 0, & \text{if the away team wins}. \end{cases}$$
-
-### Predictor Variables ($X$)
-To capture comparative, recent team form, our explanatory variables are calculated as the **difference between Team A (Home) and Team B (Away)** using rolling 10-game statistics. For any statistic $S$:
-
-$$S_{\text{diff}} = S_{\text{Home}} - S_{\text{Away}}$$
-
-**Core Predictors Used:**
-* `teamScore_roll10_diff`: Average points scored difference.
-* `fieldGoalsPercentage_roll10_diff`: Field goal percentage accuracy difference.
-* `threePointersPercentage_roll10_diff`: 3pt shooting percentage difference.
-* `freeThrowsPercentage_roll10_diff`: Free throw accuracy difference.
-* `reboundsOffensive_roll10_diff / reboundsDefensive_roll10_diff`: Rebounding dominance differences.
-* `assists_roll10_diff`: Ball movement/playmaking difference.
-* `turnovers_roll10_diff`: Ball security difference.
-* `steals_roll10_diff / blocks_roll10_diff`: Defensive disruption metrics.
-* `plusMinusPoints_roll10_diff`: Overall net efficiency difference.
-* `win_roll10_diff`: Recent win-rate velocity difference.
+Model coefficients quantify how each standardized predictor changes the log-odds of the home team winning.
 
 ---
 
-## 1.3 Chronological 80/20 Time Split Evaluation
+## 1.2 Final Model
 
-To establish our static baseline performance, we implement a strict chronological 80/20 data split (training on the first 80% of games, testing on the remaining 20% to prevent temporal leakages). The model uses an $L_1$-regularized (LASSO) penalty framework ($C=0.1$, solver=`liblinear`).
+The final logistic regression model is trained using the **combined regular season and playoff dataset (2010–2025)**.
 
-### 1.3.1 Regular Season Models
-Evaluating performance exclusively within regular season environments (`matchup_reg`):
+### Model Configuration
 
-#### Regular Season Baseline (`win_roll10_diff` only)
-* **Accuracy:** 0.6302
-* **ROC-AUC:** 0.6801
-* **Log Loss:** 0.6383
+- **Dataset:** Combined regular season and playoff games
+- **Features:** Full feature set
+- **Feature Scaling:** `StandardScaler`
+- **Model:** Logistic Regression
+- **Regularization:** L1 (LASSO)
+- **Solver:** `liblinear`
+- **Regularization parameter:** `C = 0.1`
 
-#### Regular Season Full (All Features)
-* **Accuracy:** 0.6495
-* **ROC-AUC:** 0.7056
-* **Log Loss:** 0.6226
+### Evaluation
 
-| Top Regular Season Features | Coef |
-| :--- | :---: |
-| `plusMinusPoints_roll10_diff` | 0.4998 |
-| `win_roll10_diff` | 0.1472 |
-| `blocks_roll10_diff` | 0.0324 |
-| `turnovers_roll10_diff` | -0.0254 |
-| `threePointersPercentage_roll10_diff` | -0.0291 |
-| `reboundsOffensive_roll10_diff` | -0.0482 |
-| `b2b_diff` | -0.1173 |
+A rolling five-year backtesting framework is used to simulate real-world prediction.
+
+For each evaluation season (2020–2025):
+- Train on the previous five seasons.
+- Predict every game in the following season.
+- Compute Accuracy, ROC-AUC, and Precision.
 
 ---
 
-### 1.3.2 Playoff Models
-Evaluating model behavior strictly inside postseason environments (`matchup_po`):
+## 1.3 Results
 
-#### Playoff Baseline (`win_roll10_diff` only)
-* **Accuracy:** 0.5782
-* **ROC-AUC:** 0.6179
-* **Log Loss:** 0.6699
+### Overall Performance
 
-#### Playoff Full (All Features)
-* **Accuracy:** 0.6400
-* **ROC-AUC:** 0.6477
-* **Log Loss:** 0.6507
+| Model | Accuracy | ROC-AUC | Precision |
+| :--- | :---: | :---: | :---: |
+| Baseline 1 (Home Team Wins) | 0.554 | 0.500 | 0.554 |
+| Baseline 2 (Last-10 Record) | 0.611 | 0.621 | 0.646 |
+| **Logistic Regression (Full Features)** | **0.629** | **0.669** | **0.640** |
 
-| Top Playoff Features | Coef |
-| :--- | :---: |
-| `plusMinusPoints_roll10_diff` | 0.2923 |
-| `fieldGoalsPercentage_roll10_diff` | 0.1329 |
-| `rest_days_diff` | 0.0405 |
-| `threePointersPercentage_roll10_diff` | -0.0791 |
+The logistic regression model improves predictive performance over both baseline methods by incorporating rolling team statistics, scheduling variables, and recent performance indicators.
 
-*Insight:* In the playoffs, LASSO completely zeroes out several metrics including `win_roll10_diff` and `b2b_diff` (since back-to-backs do not occur in series play), highlighting the structural shift in playoff basketball settings.
----
+### Rolling Five-Year Backtesting
 
-### 1.3.3 Combined Models
-Models trained and evaluated across the entire blended dataset (`matchup_clean`):
+| Season | Accuracy | ROC-AUC | Precision |
+| :---: | :---: | :---: | :---: |
+| 2020 | 0.5995 | 0.6459 | 0.6062 |
+| 2021 | 0.6221 | 0.6494 | 0.6251 |
+| 2022 | 0.6015 | 0.6114 | 0.6371 |
+| 2023 | 0.6373 | 0.6924 | 0.6424 |
+| 2024 | 0.6563 | 0.7079 | 0.6622 |
+| 2025 | 0.6558 | 0.7086 | 0.6643 |
 
-#### Combined Baseline
-* **Accuracy:** 0.6297
-* **ROC-AUC:** 0.6751
-* **Log Loss:** 0.6411
+### Summary Statistics
 
-#### Combined Full Model
-* **Accuracy:** 0.6477
-* **ROC-AUC:** 0.6991
-* **Log Loss:** 0.6266
+| Metric | Mean | Standard Deviation |
+| :--- | :---: | :---: |
+| Accuracy | 0.6288 | 0.0253 |
+| ROC-AUC | 0.6693 | 0.0397 |
+| Precision | 0.6395 | 0.0222 |
 
-| Top Combined Features | Coef |
-| :--- | :---: |
-| `plusMinusPoints_roll10_diff` | 0.5024 |
-| `win_roll10_diff` | 0.1291 |
-| `blocks_roll10_diff` | 0.0367 |
-| `fieldGoalsPercentage_roll10_diff` | 0.0193 |
-| `turnovers_roll10_diff` | -0.0216 |
-| `threePointersPercentage_roll10_diff` | -0.0370 |
-| `b2b_diff` | -0.1107 |
----
-
- 
-
-## 1.4 Season-by-Season Backtesting Results
-
-To simulate realistic production use cases, we execute a sequential backtest where the model trains on Season $t-1$ data to predict the entirety of Season $t$ regular season games.
-
-| Season | Baseline Acc | Baseline AUC | Baseline LL | Full Acc | Full AUC | Full LL |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| **2011** | 0.638 | 0.644 | 0.644 | 0.642 | 0.657 | 0.639 |
-| **2012** | 0.643 | 0.669 | 0.630 | 0.647 | 0.676 | 0.625 |
-| **2013** | 0.631 | 0.675 | 0.635 | 0.631 | 0.674 | 0.635 |
-| **2014** | 0.657 | 0.685 | 0.627 | 0.666 | 0.696 | 0.623 |
-| **2015** | 0.646 | 0.685 | 0.626 | 0.648 | 0.702 | 0.614 |
-| **2016** | 0.619 | 0.640 | 0.652 | 0.626 | 0.654 | 0.646 |
-| **2017** | 0.624 | 0.671 | 0.636 | 0.641 | 0.676 | 0.633 |
-| **2018** | 0.630 | 0.649 | 0.643 | 0.651 | 0.672 | 0.632 |
-| **2019** | 0.614 | 0.658 | 0.650 | 0.619 | 0.661 | 0.648 |
-| **2020** | 0.596 | 0.635 | 0.661 | 0.607 | 0.650 | 0.654 |
-| **2021** | 0.608 | 0.638 | 0.660 | 0.609 | 0.641 | 0.658 |
-| **2022** | 0.568 | 0.595 | 0.674 | 0.600 | 0.618 | 0.665 |
-| **2023** | 0.598 | 0.674 | 0.655 | 0.628 | 0.685 | 0.642 |
-| **2024** | 0.633 | 0.676 | 0.638 | 0.655 | 0.710 | 0.620 |
-| **2025** | 0.646 | 0.700 | 0.625 | 0.656 | 0.711 | 0.616 |
-
-*Insight:* Performance scales positively across seasons, peaking in 2025 (AUC: 0.704), proving that rolling form metrics carry stable, predictive weight over time.
-
----
-
-## 1.5 Postseason-Only Season-by-Season Backtesting
-
-Running the same temporal backtest strictly on playoff data exposes high sample variance and predictive flatlines, caused by sparse game counts and uncalibrated probabilities across isolated short series.
-
-| Season | Baseline Acc | Baseline AUC | Baseline LL | Full Acc | Full AUC | Full LL |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| **2011** | 0.679 | 0.500 | 0.666 | 0.679 | 0.500 | 0.666 |
-| **2012** | 0.635 | 0.500 | 0.668 | 0.635 | 0.595 | 0.662 |
-| **2013** | 0.562 | 0.500 | 0.689 | 0.562 | 0.500 | 0.689 |
-| **2014** | 0.407 | 0.500 | 0.693 | 0.407 | 0.500 | 0.693 |
-| **2015** | 0.326 | 0.500 | 0.693 | 0.535 | 0.520 | 0.703 |
-| **2016** | 0.570 | 0.500 | 0.684 | 0.570 | 0.718 | 0.669 |
-| **2017** | 0.573 | 0.607 | 0.690 | 0.512 | 0.567 | 0.694 |
-| **2018** | 0.561 | 0.500 | 0.687 | 0.561 | 0.500 | 0.687 |
-| **2019** | 0.506 | 0.500 | 0.693 | 0.570 | 0.602 | 0.691 |
-| **2020** | 0.418 | 0.500 | 0.693 | 0.527 | 0.536 | 0.692 |
-| **2021** | 0.398 | 0.500 | 0.693 | 0.548 | 0.601 | 0.691 |
-| **2022** | 0.411 | 0.500 | 0.693 | 0.411 | 0.500 | 0.693 |
-| **2023** | 0.398 | 0.500 | 0.693 | 0.398 | 0.500 | 0.693 |
-| **2024** | 0.433 | 0.500 | 0.693 | 0.400 | 0.454 | 0.696 |
-| **2025** | 0.440 | 0.500 | 0.693 | 0.549 | 0.589 | 0.688 |
-
-### Postseason Backtest Analysis Summary
-* **Extreme Sample Variance:** Due to minor sample sizes (79 to 93 games per playoff year) and highly repetitive matchups within a 7-game series, single-season playoff accuracies fluctuate wildly—ranging from a high of **67.9%** (2011) down to a complete predictive failure of **32.6%** (2015).
-* **The "Series Effect" Flattening:** Multiple playoff seasons show an ROC-AUC of exactly **0.5000** with a Log Loss of **0.6931**. This happens because LASSO regression completely zeroes out the coefficients for erratic rolling features when faced with sparse postseason data, forcing the model to output a uninformative, flat 50/50 probability map for every game.
-
----
-
-## 1.6 Combined Dataset Season-by-Season Backtesting
-
-Backtesting performances tracked over the fully integrated master dataset containing both Regular Season and Playoff games:
-
-| Season | Baseline Acc | Baseline AUC | Baseline LL | Full Acc | Full AUC | Full LL |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| **2011** | 0.647 | 0.640 | 0.642 | 0.651 | 0.653 | 0.638 |
-| **2012** | 0.641 | 0.660 | 0.632 | 0.644 | 0.671 | 0.625 |
-| **2013** | 0.622 | 0.659 | 0.642 | 0.626 | 0.668 | 0.638 |
-| **2014** | 0.656 | 0.683 | 0.629 | 0.658 | 0.689 | 0.628 |
-| **2015** | 0.647 | 0.679 | 0.627 | 0.652 | 0.697 | 0.616 |
-| **2016** | 0.617 | 0.640 | 0.652 | 0.633 | 0.653 | 0.645 |
-| **2017** | 0.626 | 0.668 | 0.635 | 0.649 | 0.671 | 0.633 |
-| **2018** | 0.629 | 0.648 | 0.644 | 0.649 | 0.672 | 0.632 |
-| **2019** | 0.608 | 0.652 | 0.654 | 0.616 | 0.660 | 0.650 |
-| **2020** | 0.592 | 0.631 | 0.662 | 0.608 | 0.646 | 0.655 |
-| **2021** | 0.609 | 0.633 | 0.661 | 0.610 | 0.641 | 0.658 |
-| **2022** | 0.595 | 0.593 | 0.673 | 0.600 | 0.616 | 0.664 |
-| **2023** | 0.597 | 0.671 | 0.655 | 0.633 | 0.682 | 0.642 |
-| **2024** | 0.633 | 0.672 | 0.640 | 0.657 | 0.703 | 0.624 |
-| **2025** | 0.641 | 0.692 | 0.628 | 0.656 | 0.708 | 0.617 |
-
-### Combined Dataset Analysis Summary
-* **Postseason Buffer Effect:** Blending the massive regular season data matrix back into the testing sets acts as a stabilizer. The presence of regular season games masks the hyper-volatility of pure playoff game evaluation, locking accuracy securely back into a predictable **60.0% to 65.8%** band across eras. 
-* **Model Limits:** Despite leveraging cross-season performance variables, the combined evaluation maintains a persistent accuracy ceiling (~65.8% max in 2014). This underscores the irreducible noise embedded within multi-game series data, where strategic real-time player injuries and tactical adjustments deviate from regular season pacing rules.
-
-
-## 1.7 Regular Season to Playoff Transfer Model
-
-To evaluate the generalization limits of our baseline framework, we test how models trained on regular-season dynamics transfer to the high-intensity, strategic environment of the NBA Playoffs. The postseason presents unique modeling challenges: rotations shorten, game-planning becomes highly opponent-specific, and the raw "noise" of back-to-backs is eliminated.
-
-We deployed an $L_1$-regularized (LASSO) Logistic Regression model ($C=0.1$, solver=`liblinear`) across two distinct validation structures.
-
-### 1.7.1 Structure A: Aggregate Cross-Era Playoff Forecasting
-First, we trained a single model on the historical regular season aggregate dataset and tested it blindly against all historical playoff games combined.
-
-* **Accuracy:** 0.6120
-* **ROC-AUC:** 0.6122
-* **Log Loss:** 0.6570
-
-*Insight:* The drop in ROC-AUC relative to regular-season splits shows that historical trends don't perfectly transfer to the postseason. Playoff matchups have structurally different defensive intensities and slower paces, which reduces the predictive power of regular-season rolling statistics.
-
----
-
-### 1.7.2 Structure B: Same-Season Intratemporal Backtesting
-To control for changing playing styles across different eras, we built a seasonal tracking loop. For each individual year from 2010 to 2025, the model trains exclusively on that year's regular-season games to predict its specific postseason outcomes.
-
-| Season | Regular Games | Playoff Games | Accuracy | ROC-AUC | Log Loss |
-| :--- | :---: | :---: | :---: | :---: | :---: |
-| **2010** | 1213 | 81 | 0.6667 | 0.6413 | 0.6265 |
-| **2011** | 990 | 84 | 0.6667 | 0.6537 | 0.6179 |
-| **2012** | 1229 | 85 | 0.6471 | 0.5651 | 0.6618 |
-| **2013** | 1230 | 89 | 0.5281 | 0.4974 | 0.7110 |
-| **2014** | 1230 | 81 | 0.5556 | 0.6105 | 0.6674 |
-| **2015** | 1230 | 86 | 0.6163 | 0.6336 | 0.6362 |
-| **2016** | 1230 | 79 | 0.5949 | 0.6327 | 0.6495 |
-| **2017** | 1230 | 82 | 0.6585 | 0.5927 | 0.6499 |
-| **2018** | 1230 | 82 | 0.6463 | 0.6630 | 0.6518 |
-| **2019** | 1092 | 79 | 0.5823 | 0.5788 | 0.6960 |
-| **2020** | 1080 | 91 | 0.5604 | 0.5929 | 0.6762 |
-| **2021** | 1230 | 93 | 0.5484 | 0.5927 | 0.6718 |
-| **2022** | 1230 | 90 | 0.6111 | 0.5701 | 0.6713 |
-| **2023** | 1230 | 88 | 0.6136 | 0.6275 | 0.6668 |
-| **2024** | 1225 | 90 | 0.6111 | 0.5892 | 0.6837 |
-| **2025** | 1231 | 91 | 0.6044 | 0.6652 | 0.6409 |
-
-*Key Takeaways:*
-* **High Postseason Variance:** Predictive accuracy fluctuates wildly depending on the season, peaking at **66.67%** (2010, 2011) and dropping to a floor of **52.81%** in 2013, where regular-season data struggled to pick up on playoff adjustments.
-* **Recent Stability:** The most recent **2025 Season** showed strong predictability (ROC-AUC of **0.6652**), indicating that our rolling performance metrics successfully captured the late-season form of playoff contenders.
+The rolling five-year evaluation demonstrates that the logistic regression model consistently outperforms both baseline methods while maintaining stable predictive performance across seasons. Achieving an average accuracy of **62.9%** and an average ROC-AUC of **0.669**, the model confirms that rolling team performance statistics provide meaningful predictive signals for NBA game outcomes.
 
 ---
 
