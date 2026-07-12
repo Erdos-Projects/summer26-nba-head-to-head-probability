@@ -18,7 +18,6 @@ This project aims to develop a machine learning system to predict the win probab
 * Supplementary data set: [nba_api python package](https://nba-apidocumentation.knowledgeowl.com/help)
 
 **Presentation Materials**
-* [Video Presentation](https://github.com/Erdos-Projects/summer26-nba-head-to-head-probability/blob/main/presentation/NBAv1.mp4)
 * [Powerpoint Presentation](https://github.com/Erdos-Projects/summer26-nba-head-to-head-probability/blob/main/presentation/Erdos%20Summer%202026%20NBA%20Head-to-Head%20Win%20Probability%20Prediction.pdf)
 * [Final Model](https://github.com/Erdos-Projects/summer26-nba-head-to-head-probability/blob/main/notebooks/NBA_logistics_model.ipynb)
 
